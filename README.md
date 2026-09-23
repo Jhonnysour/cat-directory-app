@@ -18,6 +18,16 @@ mantiene el catálogo ya cargado, reintenta fallos transitorios y puede iniciar 
 El nombre visible de la aplicación es **Cat-tionary**. El repositorio conserva el
 nombre solicitado `cat-directory-app` y el paquete Dart es `cat_directory_app`.
 
+## Descargar APK
+
+[Descargar Cat-tionary v1.0.0 para Android](https://github.com/Jhonnysour/cat-directory-app/releases/download/v1.0.0/app-release.apk)
+o consultar las [notas del release](https://github.com/Jhonnysour/cat-directory-app/releases/tag/v1.0.0).
+
+Compatible con **Android 7.0 o superior, arquitectura ARM64**. Tamaño aproximado:
+**20,7 MB**. Descarga `app-release.apk` en el teléfono y ábrelo para instalarlo;
+si Android lo solicita, autoriza la instalación desde esa fuente de confianza.
+Es una compilación release con firma de desarrollo para evaluación, no para tiendas.
+
 ## Funcionalidades
 
 - Directorio paginado mediante infinite scroll.
@@ -108,8 +118,10 @@ El informe local se genera en `coverage/lcov.info` y no se incluye en Git.
 
 ### APK release
 
+Para generar un APK ARM64 como el publicado:
+
 ```bash
-flutter build apk --release
+flutter build apk --release --target-platform android-arm64
 ```
 
 El archivo se genera en:
@@ -524,7 +536,6 @@ aísla el encabezado con un catálogo vacío; no equivale a auditar toda la app 
   cacheable y medible.
 - Sincronizar en Android 12+ el splash con el override de tema de la app.
 - Configurar App Links/Universal Links con un dominio verificado.
-- Publicar el APK release en GitHub Releases.
 
 ## Licencias de recursos
 
