@@ -1,14 +1,13 @@
 import 'package:cat_directory_app/core/network/dio_client.dart';
 import 'package:cat_directory_app/core/network/network_info.dart';
+import 'package:cat_directory_app/core/router/app_router.dart';
 import 'package:cat_directory_app/features/breeds/data/datasources/breeds_local_datasource.dart';
 import 'package:cat_directory_app/features/breeds/data/datasources/breeds_remote_datasource.dart';
 import 'package:cat_directory_app/features/breeds/data/repositories/breeds_repository_impl.dart';
 import 'package:cat_directory_app/features/breeds/domain/repositories/breeds_repository.dart';
-import 'package:cat_directory_app/features/breeds/presentation/bloc/breeds_bloc.dart';
-import 'package:cat_directory_app/features/breeds/presentation/pages/breeds_page.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -24,10 +23,11 @@ void main() {
   runApp(MyApp(repository: repository, networkInfo: networkInfo));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({
     required this.repository,
     required this.networkInfo,
+    this.initialLocation,
     super.key,
   });
 
@@ -35,15 +35,39 @@ class MyApp extends StatelessWidget {
 
   final BreedsRepository repository;
   final NetworkInfo networkInfo;
+  final String? initialLocation;
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _router = createAppRouter(
+      repository: widget.repository,
+      networkInfo: widget.networkInfo,
+      initialLocation: widget.initialLocation,
+    );
+  }
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: _terracotta,
+      seedColor: MyApp._terracotta,
       brightness: Brightness.light,
     );
 
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Directorio de razas',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -54,10 +78,7 @@ class MyApp extends StatelessWidget {
           behavior: SnackBarBehavior.floating,
         ),
       ),
-      home: BlocProvider(
-        create: (_) => BreedsBloc(repository)..add(const BreedsStarted()),
-        child: BreedsPage(networkInfo: networkInfo),
-      ),
+      routerConfig: _router,
     );
   }
 }

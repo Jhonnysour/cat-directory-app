@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cat_directory_app/core/error/failure.dart';
 import 'package:cat_directory_app/core/network/network_info.dart';
 import 'package:cat_directory_app/features/breeds/domain/entities/breed.dart';
@@ -21,6 +23,92 @@ void main() {
     expect(find.text('Directorio de razas'), findsOneWidget);
     expect(find.text('Abyssinian'), findsOneWidget);
     expect(find.text('Egypt'), findsOneWidget);
+  });
+
+  testWidgets('opens breed detail while the random fact loads independently', (
+    tester,
+  ) async {
+    final factCompleter = Completer<CatFact>();
+    final repository = _FakeBreedsRepository(factCompleter: factCompleter);
+
+    await tester.pumpWidget(
+      MyApp(repository: repository, networkInfo: _FakeNetworkInfo()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Abyssinian'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Detalle de raza'), findsOneWidget);
+    expect(find.text('Información de la raza'), findsOneWidget);
+    expect(find.text('Natural'), findsOneWidget);
+    expect(find.text('Short'), findsOneWidget);
+    expect(find.text('Ticked'), findsOneWidget);
+    expect(find.text('Buscando un dato curioso…'), findsOneWidget);
+    expect(repository.findCalls, 0);
+
+    factCompleter.complete(
+      const CatFact(text: 'Los gatos duermen muchas horas.', length: 32),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Los gatos duermen muchas horas.'), findsOneWidget);
+  });
+
+  testWidgets('resolves a cold breed deep link through the repository', (
+    tester,
+  ) async {
+    final repository = _FakeBreedsRepository();
+
+    await tester.pumpWidget(
+      MyApp(
+        repository: repository,
+        networkInfo: _FakeNetworkInfo(),
+        initialLocation: '/breed/Abyssinian',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Detalle de raza'), findsOneWidget);
+    expect(find.text('Abyssinian'), findsWidgets);
+    expect(repository.findCalls, 1);
+    expect(repository.watchCalls, 0);
+  });
+
+  testWidgets('shows not found only after a successful cold lookup', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MyApp(
+        repository: _FakeBreedsRepository(resolvedBreed: null),
+        networkInfo: _FakeNetworkInfo(),
+        initialLocation: '/breed/Unknown%20Cat',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Raza no encontrada'), findsOneWidget);
+    expect(find.text('Volver al directorio'), findsWidgets);
+  });
+
+  testWidgets('does not report not found when a cold lookup loses connection', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MyApp(
+        repository: _FakeBreedsRepository(
+          findFailure: const Failure.noConnection(),
+        ),
+        networkInfo: _FakeNetworkInfo(),
+        initialLocation: '/breed/Abyssinian',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No pudimos cargar esta raza'), findsOneWidget);
+    expect(find.text('Raza no encontrada'), findsNothing);
+    expect(find.text('Reintentar'), findsOneWidget);
   });
 
   testWidgets('pagination snackbar expires and keeps loaded breeds', (
@@ -58,6 +146,12 @@ final class _FakeNetworkInfo implements NetworkInfo {
 }
 
 final class _FakeBreedsRepository implements BreedsRepository {
+  _FakeBreedsRepository({
+    this.resolvedBreed = _breed,
+    this.findFailure,
+    this.factCompleter,
+  });
+
   static const _breed = Breed(
     name: 'Abyssinian',
     country: 'Egypt',
@@ -66,8 +160,15 @@ final class _FakeBreedsRepository implements BreedsRepository {
     pattern: 'Ticked',
   );
 
+  final Breed? resolvedBreed;
+  final Failure? findFailure;
+  final Completer<CatFact>? factCompleter;
+  int findCalls = 0;
+  int watchCalls = 0;
+
   @override
   Stream<BreedsPage> watchBreeds({int limit = 10}) async* {
+    watchCalls++;
     yield BreedsPage(
       breeds: const [_breed],
       currentPage: 1,
@@ -78,7 +179,13 @@ final class _FakeBreedsRepository implements BreedsRepository {
   }
 
   @override
-  Future<Breed?> findBreedByName(String name, {int limit = 10}) async => _breed;
+  Future<Breed?> findBreedByName(String name, {int limit = 10}) async {
+    findCalls++;
+    if (findFailure case final failure?) {
+      throw failure;
+    }
+    return resolvedBreed;
+  }
 
   @override
   Future<BreedsPage> getBreedsPage({required int page, int limit = 10}) {
@@ -86,9 +193,11 @@ final class _FakeBreedsRepository implements BreedsRepository {
   }
 
   @override
-  Future<CatFact> getRandomFact() {
-    throw UnimplementedError();
-  }
+  Future<CatFact> getRandomFact() =>
+      factCompleter?.future ??
+      Future.value(
+        const CatFact(text: 'Los gatos duermen muchas horas.', length: 32),
+      );
 
   @override
   Future<BreedsPage> refreshBreeds({int limit = 10}) {

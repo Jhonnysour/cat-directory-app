@@ -9,6 +9,7 @@ import 'package:cat_directory_app/features/breeds/presentation/widgets/offline_b
 import 'package:cat_directory_app/features/breeds/presentation/widgets/skeleton_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 class BreedsPage extends StatefulWidget {
   const BreedsPage({required this.networkInfo, super.key});
@@ -123,7 +124,8 @@ class _BreedsPageState extends State<BreedsPage> {
                   const SizedBox(height: 18),
                   _SearchField(
                     controller: _searchController,
-                    enabled: !state.isInitialLoading &&
+                    enabled:
+                        !state.isInitialLoading &&
                         state.status != BreedsStatus.failure,
                     onChanged: (query) => context.read<BreedsBloc>().add(
                       BreedsSearchChanged(query),
@@ -153,8 +155,7 @@ class _BreedsPageState extends State<BreedsPage> {
       return ErrorView(
         title: 'No pudimos cargar el directorio',
         message: _initialFailureMessage(state.failure),
-        onRetry: () =>
-            context.read<BreedsBloc>().add(const BreedsStarted()),
+        onRetry: () => context.read<BreedsBloc>().add(const BreedsStarted()),
       );
     }
     if (state.visibleBreeds.isEmpty) {
@@ -182,7 +183,8 @@ class _BreedsPageState extends State<BreedsPage> {
             child: ListView.builder(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: state.visibleBreeds.length +
+              itemCount:
+                  state.visibleBreeds.length +
                   (state.isLoadingNextPage ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index == state.visibleBreeds.length) {
@@ -190,7 +192,17 @@ class _BreedsPageState extends State<BreedsPage> {
                 }
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: BreedTile(breed: state.visibleBreeds[index]),
+                  child: BreedTile(
+                    breed: state.visibleBreeds[index],
+                    onTap: () {
+                      final breed = state.visibleBreeds[index];
+                      context.pushNamed(
+                        'breedDetail',
+                        pathParameters: {'name': breed.name},
+                        extra: breed,
+                      );
+                    },
+                  ),
                 );
               },
             ),
@@ -354,9 +366,9 @@ class _EmptySearchView extends StatelessWidget {
             Text(
               hasQuery ? 'No encontramos razas' : 'No hay razas disponibles',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
