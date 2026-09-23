@@ -31,6 +31,7 @@ nombre solicitado `cat-directory-app` y el paquete Dart es `cat_directory_app`.
 - Ruta parametrizada `/breed/:name` mediante GoRouter.
 - Resolución de deep links en frío desde caché o recorriendo la API.
 - Detalle con raza, país, origen, pelaje y patrón.
+- Animación Hero del monograma entre el directorio y el detalle, en ambos sentidos.
 - Dato curioso aleatorio con carga y error independientes del detalle.
 - Temas Material 3: Sistema, Claro y Oscuro, con preferencia persistente.
 - Semántica accesible para buscador, tarjetas, carga, vacío y errores.
@@ -92,8 +93,8 @@ flutter analyze
 flutter test
 ```
 
-Última verificación: **análisis estático limpio y 163 pruebas aprobadas**
-(154 unitarias y 9 de widgets).
+Última verificación: **análisis estático limpio y 172 pruebas aprobadas**
+(154 unitarias y 18 de widgets).
 
 Para medir la cobertura y resumir las líneas del código de la app, excluyendo
 archivos generados:
@@ -119,6 +120,11 @@ build/app/outputs/flutter-apk/app-release.apk
 
 La configuración actual usa la firma de debug para que el APK release pueda
 instalarse durante la evaluación. No debe utilizarse así para publicar en una tienda.
+
+El permiso `android.permission.INTERNET` se declara en el manifiesto principal,
+para que las peticiones funcionen también en release, no solo en debug/profile.
+Se comprobó su presencia en el APK y el acceso real a `/breeds` y `/fact` desde
+el teléfono físico con la compilación release instalada.
 
 ## Arquitectura
 
@@ -221,6 +227,21 @@ es un dato general aleatorio sobre gatos, no un dato asociado a la raza seleccio
 La interfaz lo comunica como **Dato curioso aleatorio** y mantiene su carga o error
 en un subestado independiente para no ocultar la información principal.
 
+### Transición Hero
+
+El monograma comparte un `Hero` entre la tarjeta y el encabezado del detalle.
+`BreedAvatar` interpola su tamaño, color y tipografía tanto al entrar como al volver.
+El tag usa el nombre completo normalizado, no las iniciales, para distinguir razas
+que comparten monograma. El detalle muestra la entidad recibida desde el primer
+frame, sin esperar al evento del BLoC ni al dato curioso.
+
+Las rutas devuelven `MaterialPage` de Flutter explícitamente: con la versión actual
+de GoRouter, la detección automática del tipo de aplicación podía elegir una
+página sin transición. Las pruebas verifican el vuelo real en el overlay, no solo
+que exista un widget `Hero`. Un deep link en frío no necesita tarjeta de origen;
+el monograma sigue siendo decorativo para TalkBack y su vuelo se desactiva cuando
+el sistema solicita reducir animaciones. No se añaden dependencias.
+
 ## Búsqueda
 
 La búsqueda filtra únicamente las razas ya cargadas en memoria, tal como solicita
@@ -255,8 +276,13 @@ caligrafía sería ilegible y el sistema ya muestra el nombre de la app debajo.
 
 El splash es nativo y no añade una pantalla Flutter intermedia. Android 12+ limita
 su composición a un ícono centrado y branding inferior, por eso el texto
-“Cat-tionary” aparece abajo. Evitar una pantalla animada adicional permite mostrar
-la caché tan pronto como termina el arranque nativo.
+“Cat-tionary” aparece abajo. Se añadieron intencionalmente **500 ms para que el usuario
+pueda apreciar la ilustración y la identidad de Cat-tionary en el splash**. Esta
+espera empieza cuando se construye el primer frame de la app y se implementa con
+`deferFirstFrame`/`allowFirstFrame`. La caché y las peticiones pueden prepararse
+durante esa espera; no se bloquea el hilo ni se espera a la red para retirarlo.
+Es un coste deliberado de medio segundo en la presentación inicial, no una pausa
+al regresar desde segundo plano. No se añade otra pantalla ni una dependencia.
 
 Los fondos son crema `#F6EDE3` en claro y `#1A110E` en oscuro. El splash sigue el
 tema del **sistema**, porque se dibuja antes de que Dart pueda leer la preferencia de
@@ -284,7 +310,8 @@ el binario final.
 | Fecha | 23 de septiembre de 2026 |
 | Escenario | 98 razas cargadas antes de medir, verificadas con el árbol accesible; última raza “York Chocolate” |
 
-Se midieron dos pasadas partiendo del final del catálogo: 18 gestos hacia el inicio
+La medición inicial, anterior a integrar Hero, incluyó dos pasadas partiendo del
+final del catálogo: 18 gestos hacia el inicio
 y 18 de vuelta hacia el final. Cada gesto ADB duró 650 ms, con una pausa de 250 ms
 entre gestos, sin interacción manual. La carga de páginas y el arranque quedaron
 fuera de la medición. El PerformanceOverlay estuvo activo; en la segunda pasada se
@@ -345,9 +372,44 @@ y los cercanos dentro de su área de caché. Las tarjetas muestran monogramas lo
 no descargan ni decodifican imágenes remotas por celda. El scroll medido se hizo
 con el catálogo ya cargado, separando el coste de renderizado del de paginación.
 
+### Comprobación de scroll con Hero integrado
+
+Se repitió el recorrido en la versión con `BreedAvatar` y rutas Material explícitas,
+en el mismo Samsung, profile, tema oscuro y 60 Hz. Se verificaron 98 razas antes y
+después, sin cambiar el escenario de 36 gestos ni incluir descarga de páginas.
+El overlay y la traza Dart/Embedder/GC estuvieron activos.
+Esta captura precede al ajuste posterior del subtítulo y a los 500 ms extra de
+splash; el arranque no formaba parte de la medición y no se atribuyen a ese ajuste
+nuevas cifras de scroll.
+
+![PerformanceOverlay con Hero integrado](assets/readme/performance_phone_hero.png)
+
+| Medición | Resultado |
+|---|---:|
+| Duración | 37,852 s |
+| Frames registrados | 2.080 |
+| UI: promedio / p95 / máximo | 0,96 / 2,71 / 7,00 ms |
+| Raster: promedio / p95 / máximo | 3,88 / 4,74 / 24,67 ms |
+| Frames con UI o raster > 16,67 ms | 1 (0,048 %) |
+
+El [registro completo](assets/readme/performance_phone_hero.json) conserva el pico
+de rasterizado. No se observó lentitud sostenida en esta ventana; no equivale a
+ausencia de jank ni a una medición del vuelo Hero, porque el escenario fue scroll.
+La captura del overlay se tomó durante un gesto y no incluye necesariamente el
+pico ocurrido fuera de sus últimos 300 frames.
+
+El [extracto de traza del frame 3345](assets/readme/performance_phone_hero_slow_frame.json)
+localiza el pico en raster: `SurfaceFrame::Encode` tardó 23,729 ms e incluyó
+`Canvas::saveLayer` durante 21,685 ms; la UI del frame tardó 1,097 ms. Son spans
+anidados y no deben sumarse. La traza sitúa el retraso durante el procesamiento de
+una capa, pero no identifica su widget ni determina si la causa raíz fue GPU,
+driver o planificación del sistema. No se atribuye el pico al vuelo Hero, que no
+formaba parte del escenario medido.
+
 ### Tamaño del APK
 
-`--analyze-size` requiere una única ABI, por lo que se auditó el APK ARM64 final:
+`--analyze-size` requiere una única ABI, por lo que se auditó el APK ARM64 final,
+regenerado con el permiso de internet, Hero, el subtítulo final y la espera del splash:
 
 ```bash
 flutter build apk --release --analyze-size --target-platform android-arm64
@@ -355,14 +417,14 @@ flutter build apk --release --analyze-size --target-platform android-arm64
 
 | Componente comprimido | Tamaño aproximado |
 |---|---:|
-| APK release | 20,4 MB (21.435.287 bytes) |
+| APK release | 20,4 MB (21.435.315 bytes) |
 | Bibliotecas nativas `arm64-v8a` | 16 MB |
 | Assets Flutter | 320 KB |
 | `classes.dex` | 369 KB |
 | `resources.arsc` | 104 KB |
 
 Los símbolos AOT representan aproximadamente 5 MB descomprimidos. Dentro de ellos,
-Flutter aporta cerca de 2 MB, `material_ui` 121 KB, el código de Cat-tionary 91 KB,
+Flutter aporta cerca de 2 MB, `material_ui` 120 KB, el código de Cat-tionary 95 KB,
 GoRouter 74 KB y Dio 46 KB. Los recursos PNG más grandes pertenecen al ícono y al
 splash final; ese incremento es esperado y motivó integrar el branding antes de
 esta medición.
@@ -389,8 +451,8 @@ respuestas con `Completer` para controlar explícitamente el orden de llegada.
 | Red | Configuración de Dio, backoff y límite, códigos transitorios, métodos permitidos, cancelación y cambios de conectividad sin duplicados |
 | Datos y tema | Contrato de endpoints y modelos, entidades inmutables, tema predeterminado, restauración y fallos de preferencias |
 
-La cobertura de líneas instrumentadas del código no generado es **88,07 %
-(915/1.039)** al ejecutar la suite completa. Ambos BLoC, el repositorio y la caché
+La cobertura de líneas instrumentadas del código no generado es **89,06 %
+(961/1.079)** al ejecutar la suite completa. Ambos BLoC, el repositorio y la caché
 local alcanzan el 100 % de sus líneas instrumentadas; el interceptor de retry,
 el 95 %. Son métricas de líneas, no de ramas ni una garantía de ausencia de fallos.
 La suite no reemplaza las pruebas manuales de TalkBack, rendimiento o integración
@@ -406,6 +468,16 @@ Las 9 pruebas de widgets en `test/widget_test.dart` validan:
 - Resolución de deep link en frío.
 - Diferencia entre raza inexistente y fallo de red durante la resolución.
 - Expiración del Snackbar sin pérdida de las razas cargadas.
+
+Las 8 pruebas adicionales en `test/hero_test.dart` comprueban el vuelo de ida y
+vuelta en claro/oscuro, conservación del filtro, tags únicos para monogramas
+iguales, deep link en frío, carga independiente del dato durante la animación,
+movimiento reducido y ausencia de etiquetas semánticas duplicadas en el overlay.
+
+`test/startup_test.dart` verifica que se retiene el primer frame durante 500 ms,
+que el trabajo asíncrono continúa durante esa espera y que volver desde segundo
+plano no repite el retraso. El directorio también se comprueba a 320 px de ancho
+para detectar desbordamientos con el subtítulo completo.
 
 ## Limitaciones y mejoras opcionales
 

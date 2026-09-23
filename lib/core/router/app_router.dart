@@ -6,6 +6,7 @@ import 'package:cat_directory_app/features/breeds/presentation/bloc/breed_detail
 import 'package:cat_directory_app/features/breeds/presentation/bloc/breeds_bloc.dart';
 import 'package:cat_directory_app/features/breeds/presentation/pages/breed_detail_page.dart';
 import 'package:cat_directory_app/features/breeds/presentation/pages/breeds_page.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -21,28 +22,39 @@ GoRouter createAppRouter({
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => BlocProvider(
-          create: (_) => BreedsBloc(repository)..add(const BreedsStarted()),
-          child: BreedsPage(
-            networkInfo: networkInfo,
-            themeController: themeController,
+        pageBuilder: (context, state) => MaterialPage<void>(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (_) => BreedsBloc(repository)..add(const BreedsStarted()),
+            child: BreedsPage(
+              networkInfo: networkInfo,
+              themeController: themeController,
+            ),
           ),
         ),
       ),
       GoRoute(
         name: 'breedDetail',
         path: '/breed/:name',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final name = state.pathParameters['name'] ?? '';
           final initialBreed = switch (state.extra) {
             final Breed breed => breed,
             _ => null,
           };
 
-          return BlocProvider(
-            create: (_) => BreedDetailBloc(repository)
-              ..add(BreedDetailStarted(name: name, initialBreed: initialBreed)),
-            child: BreedDetailPage(breedName: name),
+          return MaterialPage<void>(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (_) => BreedDetailBloc(repository)
+                ..add(
+                  BreedDetailStarted(name: name, initialBreed: initialBreed),
+                ),
+              child: BreedDetailPage(
+                breedName: name,
+                initialBreed: initialBreed,
+              ),
+            ),
           );
         },
       ),

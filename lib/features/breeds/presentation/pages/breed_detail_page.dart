@@ -1,6 +1,7 @@
 import 'package:cat_directory_app/core/error/failure.dart';
 import 'package:cat_directory_app/features/breeds/domain/entities/breed.dart';
 import 'package:cat_directory_app/features/breeds/presentation/bloc/breed_detail_bloc.dart';
+import 'package:cat_directory_app/features/breeds/presentation/widgets/breed_avatar.dart';
 import 'package:cat_directory_app/features/breeds/presentation/widgets/breed_detail_sections.dart';
 import 'package:cat_directory_app/features/breeds/presentation/widgets/error_view.dart';
 import 'package:flutter/material.dart';
@@ -8,9 +9,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 class BreedDetailPage extends StatelessWidget {
-  const BreedDetailPage({required this.breedName, super.key});
+  const BreedDetailPage({
+    required this.breedName,
+    this.initialBreed,
+    super.key,
+  });
 
   final String breedName;
+  final Breed? initialBreed;
 
   @override
   Widget build(BuildContext context) {
@@ -31,8 +37,17 @@ class BreedDetailPage extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
           child: BlocBuilder<BreedDetailBloc, BreedDetailState>(
             builder: (context, state) => switch (state) {
-              BreedDetailInitial() ||
-              BreedDetailLoading() => const _DetailLoadingView(),
+              BreedDetailInitial() || BreedDetailLoading() =>
+                initialBreed == null
+                    ? const _DetailLoadingView()
+                    // Hero needs its destination in the very first route frame,
+                    // before the BLoC handles the queued start event.
+                    : _LoadedBreedDetail(
+                        state: BreedDetailLoaded(
+                          breed: initialBreed!,
+                          factStatus: BreedFactStatus.loading,
+                        ),
+                      ),
               BreedDetailNotFound() => _BreedNotFoundView(
                 name: state.requestedName,
                 onBack: () => _goToDirectory(context),
@@ -117,17 +132,7 @@ class _BreedHeader extends StatelessWidget {
           ),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 34,
-                backgroundColor: colors.surface,
-                foregroundColor: colors.primary,
-                child: Text(
-                  _monogram(breed.name),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
+              BreedAvatar(breed: breed, expanded: true),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -167,14 +172,6 @@ class _BreedHeader extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _monogram(String name) {
-    final words = name.trim().split(RegExp(r'\s+'));
-    final source = words.length > 1 && words.first.toLowerCase() == 'american'
-        ? words[1]
-        : words.first;
-    return source.substring(0, source.length.clamp(0, 2)).toUpperCase();
   }
 }
 

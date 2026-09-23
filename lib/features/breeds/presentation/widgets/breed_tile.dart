@@ -1,4 +1,5 @@
 import 'package:cat_directory_app/features/breeds/domain/entities/breed.dart';
+import 'package:cat_directory_app/features/breeds/presentation/widgets/breed_avatar.dart';
 import 'package:flutter/material.dart';
 
 class BreedTile extends StatelessWidget {
@@ -16,17 +17,7 @@ class BreedTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 21,
-              backgroundColor: colors.primaryContainer,
-              foregroundColor: colors.onPrimaryContainer,
-              child: Text(
-                _monogram(breed.name),
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
+            BreedAvatar(breed: breed),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -86,13 +77,5 @@ class BreedTile extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _monogram(String name) {
-    final words = name.trim().split(RegExp(r'\s+'));
-    final source = words.length > 1 && words.first.toLowerCase() == 'american'
-        ? words[1]
-        : words.first;
-    return source.substring(0, source.length.clamp(0, 2)).toUpperCase();
   }
 }

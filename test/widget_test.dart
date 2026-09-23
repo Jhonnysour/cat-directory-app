@@ -13,6 +13,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('shows the breeds directory', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       MyApp(
         repository: _FakeBreedsRepository(),
@@ -22,8 +26,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Directorio de razas'), findsOneWidget);
+    expect(
+      find.text('Explora y conoce más sobre tus gatos favoritos'),
+      findsOneWidget,
+    );
     expect(find.text('Abyssinian'), findsOneWidget);
     expect(find.text('Egypt'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('exposes semantic labels for search and breed list', (

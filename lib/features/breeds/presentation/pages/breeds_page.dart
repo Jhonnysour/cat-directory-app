@@ -301,7 +301,7 @@ class _DirectoryHeader extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                'Explora y conoce sus orígenes',
+                'Explora y conoce más sobre tus gatos favoritos',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cat_directory_app/core/network/dio_client.dart';
 import 'package:cat_directory_app/core/network/network_info.dart';
 import 'package:cat_directory_app/core/router/app_router.dart';
@@ -26,13 +28,24 @@ Future<void> main() async {
     networkInfo,
   );
 
-  runApp(
+  runAppWithSplash(
     MyApp(
       repository: repository,
       networkInfo: networkInfo,
       themeController: themeController,
     ),
   );
+}
+
+/// Keeps the native splash for 500 ms after building the first app frame.
+/// Data loading continues underneath; no extra Flutter splash route is added.
+void runAppWithSplash(Widget app) {
+  final binding = WidgetsFlutterBinding.ensureInitialized();
+  binding.deferFirstFrame();
+  runApp(app);
+  binding.addPostFrameCallback((_) {
+    Timer(const Duration(milliseconds: 500), binding.allowFirstFrame);
+  });
 }
 
 class MyApp extends StatefulWidget {
