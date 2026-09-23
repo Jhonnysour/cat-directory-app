@@ -63,6 +63,7 @@ class BreedTile extends StatelessWidget {
 
     return Semantics(
       button: onTap != null,
+      onTap: onTap,
       label: '${breed.name}, país ${breed.country}',
       hint: onTap == null ? null : 'Abrir detalles de ${breed.name}',
       child: ExcludeSemantics(

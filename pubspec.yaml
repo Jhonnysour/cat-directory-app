@@ -73,7 +73,15 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  assets:
+    - assets/fonts/OFL.txt
+    - assets/fonts/GreatVibes-OFL.txt
+
   fonts:
+    - family: GreatVibes
+      fonts:
+        - asset: assets/fonts/GreatVibes-Regular.ttf
+          weight: 400
     - family: NunitoSans
       fonts:
         - asset: assets/fonts/NunitoSans-Regular.ttf

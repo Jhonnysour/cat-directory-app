@@ -25,7 +25,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Directorio de razas'), findsOneWidget);
+    expect(find.text('Cat-tionary'), findsOneWidget);
+    expect(find.text('Tu directorio de razas'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('Cat-tionary')).style?.fontFamily,
+      'GreatVibes',
+    );
+    expect(
+      find.bySemanticsLabel('Cat-tionary: Tu directorio de razas'),
+      findsOneWidget,
+    );
     expect(
       find.text('Explora y conoce más sobre tus gatos favoritos'),
       findsOneWidget,
@@ -93,7 +102,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final context = tester.element(find.text('Directorio de razas'));
+    final context = tester.element(find.text('Cat-tionary'));
     final theme = Theme.of(context);
 
     expect(theme.brightness, Brightness.dark);
@@ -119,7 +128,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      Theme.of(tester.element(find.text('Directorio de razas'))).brightness,
+      Theme.of(tester.element(find.text('Cat-tionary'))).brightness,
       Brightness.dark,
     );
 
@@ -135,7 +144,7 @@ void main() {
 
     expect(themeController.mode, ThemeMode.light);
     expect(
-      Theme.of(tester.element(find.text('Directorio de razas'))).brightness,
+      Theme.of(tester.element(find.text('Cat-tionary'))).brightness,
       Brightness.light,
     );
   });

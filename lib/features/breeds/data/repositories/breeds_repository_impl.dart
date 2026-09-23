@@ -20,9 +20,12 @@ final class BreedsRepositoryImpl implements BreedsRepository {
   final BreedsRemoteDataSource _remoteDataSource;
   final BreedsLocalDataSource _localDataSource;
   final NetworkInfo _networkInfo;
+  int _cacheRevision = 0;
+  Future<void> _cacheWriteTail = Future<void>.value();
 
   @override
   Stream<BreedsPage> watchBreeds({int limit = 10}) async* {
+    final initialRevision = _cacheRevision;
     final cached = await _readCache();
     if (cached != null) {
       yield cached.page.toEntity(isFromCache: true, isStale: cached.isStale);
@@ -31,29 +34,28 @@ final class BreedsRepositoryImpl implements BreedsRepository {
       }
     }
 
+    final revision = _startSnapshotIfCurrent(initialRevision);
     await _requireConnection();
     final freshPage = await _remote(
       () => _remoteDataSource.getBreeds(page: 1, limit: limit),
     );
-    await _writeCacheBestEffort(freshPage);
+    await _writeCacheBestEffort(freshPage, revision: revision);
     yield freshPage.toEntity();
   }
 
   @override
   Future<BreedsPage> getBreedsPage({required int page, int limit = 10}) async {
+    final revision = page == 1 ? ++_cacheRevision : _cacheRevision;
     await _requireConnection();
     final remotePage = await _remote(
       () => _remoteDataSource.getBreeds(page: page, limit: limit),
     );
 
-    if (page == 1) {
-      await _writeCacheBestEffort(remotePage);
-    } else {
-      final cached = await _readCache();
-      if (cached != null) {
-        await _writeCacheBestEffort(_mergePages(cached.page, remotePage));
-      }
-    }
+    await _writeCacheBestEffort(
+      remotePage,
+      revision: revision,
+      append: page != 1,
+    );
 
     return remotePage.toEntity();
   }
@@ -69,6 +71,7 @@ final class BreedsRepositoryImpl implements BreedsRepository {
       return null;
     }
 
+    final initialRevision = _cacheRevision;
     final cached = await _readCache();
     final cachedBreed = _findBreed(
       cached?.page.data ?? const [],
@@ -83,6 +86,7 @@ final class BreedsRepositoryImpl implements BreedsRepository {
       return null;
     }
 
+    final revision = _startSnapshotIfCurrent(initialRevision);
     await _requireConnection();
     BreedsPageModel? accumulated;
     var page = 1;
@@ -94,7 +98,7 @@ final class BreedsRepositoryImpl implements BreedsRepository {
       accumulated = accumulated == null
           ? remotePage
           : _mergePages(accumulated, remotePage);
-      await _writeCacheBestEffort(accumulated);
+      await _writeCacheBestEffort(accumulated, revision: revision);
 
       final breed = _findBreed(remotePage.data, normalizedName);
       if (breed != null) {
@@ -121,12 +125,41 @@ final class BreedsRepositoryImpl implements BreedsRepository {
     }
   }
 
-  Future<void> _writeCacheBestEffort(BreedsPageModel page) async {
-    try {
-      await _localDataSource.writeBreeds(page);
-    } on Object {
-      // Persistence is secondary to returning fresh network data.
-    }
+  // A slow cache read must not let an older operation supersede a refresh
+  // that started while that read was pending. Cache-only reads do not invalidate
+  // the current generation; only operations that replace the snapshot do.
+  int _startSnapshotIfCurrent(int initialRevision) =>
+      initialRevision == _cacheRevision ? ++_cacheRevision : initialRevision;
+
+  Future<void> _writeCacheBestEffort(
+    BreedsPageModel page, {
+    required int revision,
+    bool append = false,
+  }) {
+    // Serialize read/merge/write as well as replacement writes. A write already
+    // submitted to storage cannot be cancelled, so the newer snapshot must be
+    // written after it. Obsolete work still returns its result to its caller,
+    // but is not allowed to persist over a newer catalog generation.
+    _cacheWriteTail = _cacheWriteTail.then((_) async {
+      try {
+        if (revision != _cacheRevision) {
+          return;
+        }
+        var snapshot = page;
+        if (append) {
+          final cached = await _readCache();
+          if (cached == null || revision != _cacheRevision) {
+            return;
+          }
+          snapshot = _mergePages(cached.page, page);
+        }
+        await _localDataSource.writeBreeds(snapshot);
+      } on Object {
+        // Persistence is secondary to network data; a failed write must also
+        // leave the queue usable for subsequent requests.
+      }
+    });
+    return _cacheWriteTail;
   }
 
   Future<void> _requireConnection() async {

@@ -292,11 +292,33 @@ class _DirectoryHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Directorio de razas',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w700,
+              Semantics(
+                header: true,
+                label: 'Cat-tionary: Tu directorio de razas',
+                excludeSemantics: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cat-tionary',
+                      style: Theme.of(context).textTheme.headlineLarge
+                          ?.copyWith(
+                            fontFamily: 'GreatVibes',
+                            fontSize: 40,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0,
+                            height: 1.2,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                    ),
+                    Text(
+                      'Tu directorio de razas',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 2),

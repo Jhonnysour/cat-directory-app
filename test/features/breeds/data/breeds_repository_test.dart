@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cat_directory_app/core/error/failure.dart';
 import 'package:cat_directory_app/features/breeds/data/datasources/breeds_local_datasource.dart';
 import 'package:cat_directory_app/features/breeds/data/models/breeds_page_model.dart';
@@ -181,6 +183,216 @@ void main() {
       );
       verifyNever(() => local.writeBreeds(any()));
       verifyNever(() => local.clearBreeds());
+    },
+  );
+
+  test('late pagination cannot overwrite a newer refresh snapshot', () async {
+    final oldPage = Completer<BreedsPageModel>();
+    var persisted = modelPage();
+    when(() => local.readBreeds()).thenAnswer(
+      (_) async => CachedBreedsSnapshot(page: persisted, isStale: false),
+    );
+    when(() => local.writeBreeds(any())).thenAnswer((invocation) async {
+      persisted = invocation.positionalArguments.single as BreedsPageModel;
+    });
+    when(
+      () => remote.getBreeds(page: 2, limit: 10),
+    ).thenAnswer((_) => oldPage.future);
+    final pagination = repository.getBreedsPage(page: 2);
+    await pumpEventQueue();
+    final fresh = modelPage(breeds: [siameseModel]);
+    when(
+      () => remote.getBreeds(page: 1, limit: 10),
+    ).thenAnswer((_) async => fresh);
+    await repository.refreshBreeds();
+    oldPage.complete(modelPage(page: 2));
+    await pagination;
+
+    expect(persisted, fresh);
+    expect(persisted.currentPage, 1);
+  });
+
+  test('late refresh cannot overwrite a newer refresh snapshot', () async {
+    final oldPage = Completer<BreedsPageModel>();
+    var persisted = modelPage();
+    when(() => local.writeBreeds(any())).thenAnswer((invocation) async {
+      persisted = invocation.positionalArguments.single as BreedsPageModel;
+    });
+    when(
+      () => remote.getBreeds(page: 1, limit: 10),
+    ).thenAnswer((_) => oldPage.future);
+    final firstRefresh = repository.refreshBreeds();
+    await pumpEventQueue();
+    final fresh = modelPage(breeds: [siameseModel]);
+    when(
+      () => remote.getBreeds(page: 1, limit: 10),
+    ).thenAnswer((_) async => fresh);
+    await repository.refreshBreeds();
+    oldPage.complete(modelPage());
+    await firstRefresh;
+
+    expect(persisted, fresh);
+  });
+
+  test('a new snapshot waits for an already submitted storage write', () async {
+    final oldWrite = Completer<void>();
+    final writesStarted = <BreedsPageModel>[];
+    var persisted = modelPage();
+    when(() => local.writeBreeds(any())).thenAnswer((invocation) async {
+      final page = invocation.positionalArguments.single as BreedsPageModel;
+      writesStarted.add(page);
+      if (writesStarted.length == 1) {
+        await oldWrite.future;
+      }
+      persisted = page;
+    });
+    final firstRefresh = repository.refreshBreeds();
+    await pumpEventQueue();
+    expect(writesStarted, hasLength(1));
+    final fresh = modelPage(breeds: [siameseModel]);
+    when(
+      () => remote.getBreeds(page: 1, limit: 10),
+    ).thenAnswer((_) async => fresh);
+    final secondRefresh = repository.refreshBreeds();
+    await pumpEventQueue();
+    expect(writesStarted, hasLength(1));
+
+    oldWrite.complete();
+    await Future.wait([firstRefresh, secondRefresh]);
+    expect(writesStarted, [modelPage(), fresh]);
+    expect(persisted, fresh);
+  });
+
+  test('a pending pagination cache read cannot merge over a refresh', () async {
+    final oldRead = Completer<CachedBreedsSnapshot?>();
+    when(() => local.readBreeds()).thenAnswer((_) => oldRead.future);
+    when(
+      () => remote.getBreeds(page: 2, limit: 10),
+    ).thenAnswer((_) async => modelPage(page: 2));
+    final pagination = repository.getBreedsPage(page: 2);
+    await pumpEventQueue();
+    verify(() => local.readBreeds()).called(1);
+    final fresh = modelPage(breeds: [siameseModel]);
+    when(
+      () => remote.getBreeds(page: 1, limit: 10),
+    ).thenAnswer((_) async => fresh);
+    final refresh = repository.refreshBreeds();
+    await pumpEventQueue();
+    oldRead.complete(CachedBreedsSnapshot(page: modelPage(), isStale: false));
+    await Future.wait([pagination, refresh]);
+
+    final writes = verify(() => local.writeBreeds(captureAny())).captured;
+    expect(writes, [fresh]);
+  });
+
+  for (final lookup in [false, true]) {
+    final operationName = lookup ? 'cold lookup' : 'stale revalidation';
+
+    test('$operationName cannot persist after a newer refresh', () async {
+      cache(stale: true);
+      final oldRemote = Completer<BreedsPageModel>();
+      when(
+        () => remote.getBreeds(page: 1, limit: 10),
+      ).thenAnswer((_) => oldRemote.future);
+      final Future<Object?> oldOperation = lookup
+          ? repository.findBreedByName('Siamese')
+          : repository.watchBreeds().toList();
+      await pumpEventQueue();
+      verify(() => remote.getBreeds(page: 1, limit: 10)).called(1);
+      final fresh = modelPage(
+        breeds: [koratModel.copyWith(country: 'Updated')],
+      );
+      when(
+        () => remote.getBreeds(page: 1, limit: 10),
+      ).thenAnswer((_) async => fresh);
+      await repository.refreshBreeds();
+      oldRemote.complete(modelPage(breeds: [siameseModel]));
+      final result = await oldOperation;
+
+      // Superseding storage does not change the old caller's return contract.
+      if (lookup) {
+        expect(result, siamese);
+      } else {
+        expect((result as List<BreedsPage>).last.breeds, [siamese]);
+      }
+      final writes = verify(() => local.writeBreeds(captureAny())).captured;
+      expect(writes, [fresh]);
+    });
+
+    test(
+      '$operationName with a slow initial cache read stays obsolete',
+      () async {
+        final oldRead = Completer<CachedBreedsSnapshot?>();
+        when(() => local.readBreeds()).thenAnswer((_) => oldRead.future);
+        final Future<Object?> oldOperation = lookup
+            ? repository.findBreedByName('Siamese')
+            : repository.watchBreeds().toList();
+        await pumpEventQueue();
+        final fresh = modelPage(
+          breeds: [koratModel.copyWith(country: 'Updated')],
+        );
+        when(
+          () => remote.getBreeds(page: 1, limit: 10),
+        ).thenAnswer((_) async => fresh);
+        await repository.refreshBreeds();
+        when(
+          () => remote.getBreeds(page: 1, limit: 10),
+        ).thenAnswer((_) async => modelPage(breeds: [siameseModel]));
+        oldRead.complete(
+          CachedBreedsSnapshot(page: modelPage(), isStale: true),
+        );
+        await oldOperation;
+
+        final writes = verify(() => local.writeBreeds(captureAny())).captured;
+        expect(writes, [fresh]);
+      },
+    );
+  }
+
+  test('a cache-only lookup does not invalidate a refresh in flight', () async {
+    cache();
+    final pending = Completer<BreedsPageModel>();
+    when(
+      () => remote.getBreeds(page: 1, limit: 10),
+    ).thenAnswer((_) => pending.future);
+    final refresh = repository.refreshBreeds();
+    await pumpEventQueue();
+    expect(await repository.findBreedByName('Korat'), korat);
+    final fresh = modelPage(breeds: [siameseModel]);
+    pending.complete(fresh);
+    await refresh;
+
+    verify(() => local.writeBreeds(fresh)).called(1);
+  });
+
+  test(
+    'a failed storage write does not poison the next queued snapshot',
+    () async {
+      final firstWrite = Completer<void>();
+      var writes = 0;
+      BreedsPageModel? persisted;
+      when(() => local.writeBreeds(any())).thenAnswer((invocation) async {
+        writes++;
+        if (writes == 1) {
+          await firstWrite.future;
+        }
+        persisted = invocation.positionalArguments.single as BreedsPageModel;
+      });
+      final firstRefresh = repository.refreshBreeds();
+      await pumpEventQueue();
+      final fresh = modelPage(breeds: [siameseModel]);
+      when(
+        () => remote.getBreeds(page: 1, limit: 10),
+      ).thenAnswer((_) async => fresh);
+      final secondRefresh = repository.refreshBreeds();
+      await pumpEventQueue();
+      firstWrite.completeError(StateError('disk temporarily unavailable'));
+      final results = await Future.wait([firstRefresh, secondRefresh]);
+
+      expect(results.first.breeds, [korat]);
+      expect(results.last.breeds, [siamese]);
+      expect(writes, 2);
+      expect(persisted, fresh);
     },
   );
 

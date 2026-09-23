@@ -93,8 +93,8 @@ flutter analyze
 flutter test
 ```
 
-Última verificación: **análisis estático limpio y 172 pruebas aprobadas**
-(154 unitarias y 18 de widgets).
+Última verificación: **análisis estático limpio y 188 pruebas aprobadas**
+(164 unitarias y 24 de widgets).
 
 Para medir la cobertura y resumir las líneas del código de la app, excluyendo
 archivos generados:
@@ -203,6 +203,15 @@ JSON permanece pequeño y no justifica añadir Hive, Isar o SQLite.
 - Sin conexión: se conserva la copia local y aparece un banner explícito.
 - Fallo de una página posterior: las tarjetas existentes permanecen visibles.
 
+El repositorio también protege la persistencia frente a respuestas fuera de orden:
+una revisión identifica la generación vigente del catálogo y una cola serializa
+los reemplazos y las operaciones de lectura/mezcla/escritura. Así, una página,
+revalidación o búsqueda anterior no sobrescribe la caché de un refresh más reciente.
+Las respuestas pueden seguir llegando a sus consumidores; no se cancela HTTP y
+el BLoC mantiene su propio control de vigencia de la UI. La coordinación vive en
+la instancia compartida del repositorio y los errores de almacenamiento siguen
+siendo secundarios a entregar los datos de red.
+
 Tras un fallo de paginación, la carga automática queda pausada para evitar una
 ráfaga de peticiones y Snackbars al volver al final. Se reactiva mediante
 `Reintentar`, pull-to-refresh o al detectar que regresó la conexión.
@@ -262,10 +271,25 @@ Los overrides se guardan en `shared_preferences`. Nunito Sans se incluye localme
 solo en pesos 400, 600 y 700 bajo licencia OFL; así no existe una descarga de fuentes
 en runtime y su impacto puede medirse en el APK.
 
+El encabezado usa **Cat-tionary** en Great Vibes Regular, la misma fuente del splash,
+con **Tu directorio de razas** debajo en Nunito Sans. Se conserva el subtítulo
+«Explora y conoce más sobre tus gatos favoritos». Solo la marca usa cursiva; el
+resto mantiene la tipografía de lectura. Great Vibes se empaqueta localmente para
+funcionar offline y el título completo se anuncia como un único encabezado accesible.
+
 Las tarjetas y estados visuales usan `ExcludeSemantics` detrás de una etiqueta única
 para evitar lecturas duplicadas. Los botones, campos editables y áreas desplazables
 conservan sus acciones nativas. La validación se realizó con TalkBack en un teléfono
 físico, con el árbol accesible de Android y mediante widget tests.
+
+En las tarjetas, la acción `onTap` se expone explícitamente en el `Semantics`
+exterior: excluir los textos decorativos no debe ocultar también la acción de abrir
+el detalle. Las pruebas despachan `SemanticsAction.tap`, no solo toques de pantalla,
+y verifican navegación, activación única y ausencia de acción si no hay callback.
+En el Samsung con el APK release corregido se confirmó que la tarjeta expone
+`clickable: true` en el árbol accesible de Android (antes figuraba `false`). Esta
+comprobación y las acciones semánticas automatizadas no se presentan como una
+nueva evaluación manual completa con TalkBack.
 
 ## Identidad de Cat-tionary
 
@@ -378,9 +402,9 @@ Se repitió el recorrido en la versión con `BreedAvatar` y rutas Material expl�
 en el mismo Samsung, profile, tema oscuro y 60 Hz. Se verificaron 98 razas antes y
 después, sin cambiar el escenario de 36 gestos ni incluir descarga de páginas.
 El overlay y la traza Dart/Embedder/GC estuvieron activos.
-Esta captura precede al ajuste posterior del subtítulo y a los 500 ms extra de
-splash; el arranque no formaba parte de la medición y no se atribuyen a ese ajuste
-nuevas cifras de scroll.
+Esta captura precede a los ajustes posteriores de encabezado, subtítulo y a los
+500 ms extra de splash. El arranque no formaba parte de la medición; estos ajustes
+no cuentan con una nueva pasada de scroll y no se les atribuyen cifras no medidas.
 
 ![PerformanceOverlay con Hero integrado](assets/readme/performance_phone_hero.png)
 
@@ -409,7 +433,8 @@ formaba parte del escenario medido.
 ### Tamaño del APK
 
 `--analyze-size` requiere una única ABI, por lo que se auditó el APK ARM64 final,
-regenerado con el permiso de internet, Hero, el subtítulo final y la espera del splash:
+regenerado con el permiso de internet, Hero, el encabezado con Great Vibes, el
+subtítulo, la espera del splash y las correcciones de accesibilidad y caché:
 
 ```bash
 flutter build apk --release --analyze-size --target-platform android-arm64
@@ -417,14 +442,14 @@ flutter build apk --release --analyze-size --target-platform android-arm64
 
 | Componente comprimido | Tamaño aproximado |
 |---|---:|
-| APK release | 20,4 MB (21.435.315 bytes) |
+| APK release | 20,7 MB (21.656.853 bytes) |
 | Bibliotecas nativas `arm64-v8a` | 16 MB |
-| Assets Flutter | 320 KB |
+| Assets Flutter | 536 KB |
 | `classes.dex` | 369 KB |
 | `resources.arsc` | 104 KB |
 
 Los símbolos AOT representan aproximadamente 5 MB descomprimidos. Dentro de ellos,
-Flutter aporta cerca de 2 MB, `material_ui` 120 KB, el código de Cat-tionary 95 KB,
+Flutter aporta cerca de 2 MB, `material_ui` 120 KB, el código de Cat-tionary 96 KB,
 GoRouter 74 KB y Dio 46 KB. Los recursos PNG más grandes pertenecen al ícono y al
 splash final; ese incremento es esperado y motivó integrar el branding antes de
 esta medición.
@@ -432,6 +457,9 @@ esta medición.
 El tree shaking redujo `CupertinoIcons.ttf` de 257.628 a 848 bytes y
 `MaterialIcons-Regular.otf` de 1.645.184 a 4.216 bytes: una reducción del 99,7 % en
 ambos casos. Nunito Sans permanece porque sus tres pesos se usan explícitamente.
+Great Vibes se empaqueta solo en peso regular para el nombre del directorio. Con
+esta fuente local y las licencias incluidas, el APK creció 221.538 bytes respecto
+a la compilación anterior; no requiere descargar tipografías durante el uso.
 
 ## Pruebas cubiertas
 
@@ -446,13 +474,13 @@ respuestas con `Completer` para controlar explícitamente el orden de llegada.
 |---|---|
 | BLoC del directorio | Carga, caché stale, paginación concurrente, deduplicación, fin de catálogo, errores sin pérdida de datos, reintento, refresh, respuestas antiguas y debounce |
 | BLoC del detalle | Datos recibidos o resolución en frío, no encontrado frente a error, loading independiente del dato, reintento y solicitudes concurrentes o tardías |
-| Repositorio | Caché offline sin HTTP, revalidación, persistencia acumulada, fallos de almacenamiento, búsqueda paginada por nombre y conversión de errores |
+| Repositorio | Caché offline sin HTTP, revalidación, persistencia acumulada, respuestas obsoletas, escrituras concurrentes, fallos de almacenamiento, búsqueda paginada por nombre y conversión de errores |
 | Caché local | Serialización, versión, TTL y su frontera, snapshot corrupto, eliminación selectiva y errores de almacenamiento |
 | Red | Configuración de Dio, backoff y límite, códigos transitorios, métodos permitidos, cancelación y cambios de conectividad sin duplicados |
 | Datos y tema | Contrato de endpoints y modelos, entidades inmutables, tema predeterminado, restauración y fallos de preferencias |
 
-La cobertura de líneas instrumentadas del código no generado es **89,06 %
-(961/1.079)** al ejecutar la suite completa. Ambos BLoC, el repositorio y la caché
+La cobertura de líneas instrumentadas del código no generado es **91,44 %
+(1.004/1.098)** al ejecutar la suite completa. Ambos BLoC, el repositorio y la caché
 local alcanzan el 100 % de sus líneas instrumentadas; el interceptor de retry,
 el 95 %. Son métricas de líneas, no de ramas ni una garantía de ausencia de fallos.
 La suite no reemplaza las pruebas manuales de TalkBack, rendimiento o integración
@@ -479,6 +507,17 @@ que el trabajo asíncrono continúa durante esa espera y que volver desde segund
 plano no repite el retraso. El directorio también se comprueba a 320 px de ancho
 para detectar desbordamientos con el subtítulo completo.
 
+Las 3 pruebas de `test/accessibility_test.dart` comprueban las acciones semánticas
+de las tarjetas, incluyendo apertura del detalle y retorno por acción accesible.
+Las 10 regresiones de concurrencia adicionales del repositorio controlan con
+`Completer` la llegada de respuestas, lecturas y escrituras antiguas, además de la
+recuperación de la cola después de un fallo de persistencia.
+
+Las 3 pruebas de `test/directory_brand_test.dart` cargan las fuentes reales para
+comprobar la tipografía de marca, el encabezado a 320 px con texto al 200 % y la
+semántica agrupada con el selector de tema independiente. El caso de texto ampliado
+aísla el encabezado con un catálogo vacío; no equivale a auditar toda la app a esa escala.
+
 ## Limitaciones y mejoras opcionales
 
 - Traducir al español los valores externos y datos curiosos mediante una estrategia
@@ -491,4 +530,6 @@ para detectar desbordamientos con el subtítulo completo.
 
 - Nunito Sans se distribuye bajo SIL Open Font License; se incluye su archivo
   `assets/fonts/OFL.txt`.
+- Great Vibes se distribuye bajo [SIL Open Font License 1.1](https://raw.githubusercontent.com/google/fonts/main/ofl/greatvibes/OFL.txt);
+  se incluye `assets/fonts/GreatVibes-OFL.txt`. Ambas licencias se empaquetan como assets.
 - La ilustración de Cat-tionary fue creada específicamente para este proyecto.

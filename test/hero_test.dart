@@ -51,7 +51,7 @@ void main() {
       await openApp(tester);
       final source = tester.getRect(find.text('KO'));
       expect(
-        Theme.of(tester.element(find.text('Directorio de razas'))).brightness,
+        Theme.of(tester.element(find.text('Cat-tionary'))).brightness,
         brightness,
       );
 
@@ -83,7 +83,7 @@ void main() {
 
       expect(_flyingMonogram('KO'), findsNothing);
       expect(tester.getRect(find.text('KO')), source);
-      expect(find.text('Directorio de razas'), findsOneWidget);
+      expect(find.text('Cat-tionary'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
@@ -166,7 +166,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Volver al directorio'));
     await tester.pumpAndSettle();
-    expect(find.text('Directorio de razas'), findsOneWidget);
+    expect(find.text('Cat-tionary'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -224,7 +224,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(_flyingMonogram('KO'), findsNothing);
     await tester.pumpAndSettle();
-    expect(find.text('Directorio de razas'), findsOneWidget);
+    expect(find.text('Cat-tionary'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
