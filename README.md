@@ -92,7 +92,18 @@ flutter analyze
 flutter test
 ```
 
-Última verificación: **análisis estático limpio y 9 widget tests aprobados**.
+Última verificación: **análisis estático limpio y 163 pruebas aprobadas**
+(154 unitarias y 9 de widgets).
+
+Para medir la cobertura y resumir las líneas del código de la app, excluyendo
+archivos generados:
+
+```bash
+flutter test --coverage
+dart run tool/coverage_summary.dart
+```
+
+El informe local se genera en `coverage/lcov.info` y no se incluye en Git.
 
 ### APK release
 
@@ -362,7 +373,30 @@ ambos casos. Nunito Sans permanece porque sus tres pesos se usan explícitamente
 
 ## Pruebas cubiertas
 
-La suite actual valida:
+Las pruebas unitarias se organizan en `test/core/` y `test/features/`, con fixtures,
+mocks y un adaptador HTTP simulado en `test/support/`. No requieren internet,
+teléfono ni emulador; no se añaden dependencias. Se ejercita el pipeline real de
+Dio con respuestas controladas, se inyecta el reloj de la caché y se registran las
+esperas del retry sin esperar el backoff real. Las pruebas de concurrencia retienen
+respuestas con `Completer` para controlar explícitamente el orden de llegada.
+
+| Área | Comportamientos verificados |
+|---|---|
+| BLoC del directorio | Carga, caché stale, paginación concurrente, deduplicación, fin de catálogo, errores sin pérdida de datos, reintento, refresh, respuestas antiguas y debounce |
+| BLoC del detalle | Datos recibidos o resolución en frío, no encontrado frente a error, loading independiente del dato, reintento y solicitudes concurrentes o tardías |
+| Repositorio | Caché offline sin HTTP, revalidación, persistencia acumulada, fallos de almacenamiento, búsqueda paginada por nombre y conversión de errores |
+| Caché local | Serialización, versión, TTL y su frontera, snapshot corrupto, eliminación selectiva y errores de almacenamiento |
+| Red | Configuración de Dio, backoff y límite, códigos transitorios, métodos permitidos, cancelación y cambios de conectividad sin duplicados |
+| Datos y tema | Contrato de endpoints y modelos, entidades inmutables, tema predeterminado, restauración y fallos de preferencias |
+
+La cobertura de líneas instrumentadas del código no generado es **88,07 %
+(915/1.039)** al ejecutar la suite completa. Ambos BLoC, el repositorio y la caché
+local alcanzan el 100 % de sus líneas instrumentadas; el interceptor de retry,
+el 95 %. Son métricas de líneas, no de ramas ni una garantía de ausencia de fallos.
+La suite no reemplaza las pruebas manuales de TalkBack, rendimiento o integración
+con los servicios nativos y la API real.
+
+Las 9 pruebas de widgets en `test/widget_test.dart` validan:
 
 - Renderizado del directorio.
 - Etiquetas semánticas, búsqueda con debounce y limpieza.
@@ -380,7 +414,6 @@ La suite actual valida:
 - Sincronizar en Android 12+ el splash con el override de tema de la app.
 - Configurar App Links/Universal Links con un dominio verificado.
 - Publicar el APK release en GitHub Releases.
-- Ampliar la cobertura unitaria del BLoC y del repositorio.
 
 ## Licencias de recursos
 
