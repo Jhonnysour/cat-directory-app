@@ -22,9 +22,9 @@ class BreedTile extends StatelessWidget {
               foregroundColor: colors.onPrimaryContainer,
               child: Text(
                 _monogram(breed.name),
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
             const SizedBox(width: 14),
@@ -55,9 +55,8 @@ class BreedTile extends StatelessWidget {
                           breed.country,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colors.onSurfaceVariant,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.onSurfaceVariant),
                         ),
                       ),
                     ],
@@ -71,14 +70,21 @@ class BreedTile extends StatelessWidget {
       ),
     );
 
-    return Material(
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outlineVariant),
+    return Semantics(
+      button: onTap != null,
+      label: '${breed.name}, país ${breed.country}',
+      hint: onTap == null ? null : 'Abrir detalles de ${breed.name}',
+      child: ExcludeSemantics(
+        child: Material(
+          color: colors.surfaceContainerLow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: colors.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: onTap == null ? child : InkWell(onTap: onTap, child: child),
+        ),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: onTap == null ? child : InkWell(onTap: onTap, child: child),
     );
   }
 

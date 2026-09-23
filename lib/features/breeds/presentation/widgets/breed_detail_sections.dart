@@ -126,36 +126,42 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 76,
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colors.onSurfaceVariant,
+    return Semantics(
+      container: true,
+      label: '$label: $value',
+      child: ExcludeSemantics(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 76,
+                    child: Text(
+                      label,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      value,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  value,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
+            ),
+            if (showDivider) Divider(height: 1, color: colors.outlineVariant),
+          ],
         ),
-        if (showDivider) Divider(height: 1, color: colors.outlineVariant),
-      ],
+      ),
     );
   }
 }
@@ -165,16 +171,23 @@ class _FactLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      children: [
-        SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: 'Buscando un dato curioso',
+      child: ExcludeSemantics(
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Expanded(child: Text('Buscando un dato curioso…')),
+          ],
         ),
-        SizedBox(width: 12),
-        Expanded(child: Text('Buscando un dato curioso…')),
-      ],
+      ),
     );
   }
 }
@@ -214,21 +227,26 @@ class _FactFailure extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.cloud_off_outlined, color: colors.primary),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(message),
-              const SizedBox(height: 8),
-              TextButton(onPressed: onRetry, child: const Text('Reintentar')),
-            ],
+        Semantics(
+          container: true,
+          liveRegion: true,
+          label: message,
+          child: ExcludeSemantics(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.cloud_off_outlined, color: colors.primary),
+                const SizedBox(width: 10),
+                Expanded(child: Text(message)),
+              ],
+            ),
           ),
         ),
+        const SizedBox(height: 8),
+        TextButton(onPressed: onRetry, child: const Text('Reintentar')),
       ],
     );
   }

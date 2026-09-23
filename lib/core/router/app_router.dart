@@ -1,4 +1,5 @@
 import 'package:cat_directory_app/core/network/network_info.dart';
+import 'package:cat_directory_app/core/theme/theme_controller.dart';
 import 'package:cat_directory_app/features/breeds/domain/entities/breed.dart';
 import 'package:cat_directory_app/features/breeds/domain/repositories/breeds_repository.dart';
 import 'package:cat_directory_app/features/breeds/presentation/bloc/breed_detail_bloc.dart';
@@ -11,6 +12,7 @@ import 'package:go_router/go_router.dart';
 GoRouter createAppRouter({
   required BreedsRepository repository,
   required NetworkInfo networkInfo,
+  required ThemeController themeController,
   String? initialLocation,
 }) {
   return GoRouter(
@@ -21,7 +23,10 @@ GoRouter createAppRouter({
         path: '/',
         builder: (context, state) => BlocProvider(
           create: (_) => BreedsBloc(repository)..add(const BreedsStarted()),
-          child: BreedsPage(networkInfo: networkInfo),
+          child: BreedsPage(
+            networkInfo: networkInfo,
+            themeController: themeController,
+          ),
         ),
       ),
       GoRoute(

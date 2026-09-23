@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cat_directory_app/core/error/failure.dart';
 import 'package:cat_directory_app/core/network/network_info.dart';
+import 'package:cat_directory_app/core/theme/theme_controller.dart';
 import 'package:cat_directory_app/features/breeds/domain/entities/breed.dart';
 import 'package:cat_directory_app/features/breeds/domain/entities/breeds_page.dart';
 import 'package:cat_directory_app/features/breeds/domain/entities/cat_fact.dart';
@@ -25,9 +26,115 @@ void main() {
     expect(find.text('Egypt'), findsOneWidget);
   });
 
+  testWidgets('exposes semantic labels for search and breed list', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+
+    await tester.pumpWidget(
+      MyApp(
+        repository: _FakeBreedsRepository(),
+        networkInfo: _FakeNetworkInfo(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel(RegExp('Buscador de razas')), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp('Lista de razas, 1 elementos')),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(RegExp('Abyssinian, país Egypt')),
+      findsOneWidget,
+    );
+
+    await tester.enterText(find.byType(TextField), 'Aby');
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byTooltip('Limpiar búsqueda'), findsOneWidget);
+    expect(find.text('1 raza encontrada'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp('Abyssinian, país Egypt')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byTooltip('Limpiar búsqueda'));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byTooltip('Limpiar búsqueda'), findsNothing);
+    expect(find.text('1 raza encontrada'), findsNothing);
+    semantics.dispose();
+  });
+
+  testWidgets('uses Nunito Sans and follows the system dark theme', (
+    tester,
+  ) async {
+    tester.binding.platformDispatcher.platformBrightnessTestValue =
+        Brightness.dark;
+    addTearDown(
+      tester.binding.platformDispatcher.clearPlatformBrightnessTestValue,
+    );
+
+    await tester.pumpWidget(
+      MyApp(
+        repository: _FakeBreedsRepository(),
+        networkInfo: _FakeNetworkInfo(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final context = tester.element(find.text('Directorio de razas'));
+    final theme = Theme.of(context);
+
+    expect(theme.brightness, Brightness.dark);
+    expect(theme.textTheme.bodyMedium?.fontFamily, 'NunitoSans');
+  });
+
+  testWidgets('lets the user override the system theme', (tester) async {
+    tester.binding.platformDispatcher.platformBrightnessTestValue =
+        Brightness.dark;
+    addTearDown(
+      tester.binding.platformDispatcher.clearPlatformBrightnessTestValue,
+    );
+    final themeController = ThemeController.transient();
+    addTearDown(themeController.dispose);
+
+    await tester.pumpWidget(
+      MyApp(
+        repository: _FakeBreedsRepository(),
+        networkInfo: _FakeNetworkInfo(),
+        themeController: themeController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      Theme.of(tester.element(find.text('Directorio de razas'))).brightness,
+      Brightness.dark,
+    );
+
+    await tester.tap(find.byTooltip(RegExp('Cambiar tema')));
+    await tester.pumpAndSettle();
+    expect(find.text('Apariencia'), findsOneWidget);
+    expect(find.text('Sistema'), findsOneWidget);
+    expect(find.text('Claro'), findsOneWidget);
+    expect(find.text('Oscuro'), findsOneWidget);
+
+    await tester.tap(find.text('Claro'));
+    await tester.pumpAndSettle();
+
+    expect(themeController.mode, ThemeMode.light);
+    expect(
+      Theme.of(tester.element(find.text('Directorio de razas'))).brightness,
+      Brightness.light,
+    );
+  });
+
   testWidgets('opens breed detail while the random fact loads independently', (
     tester,
   ) async {
+    final semantics = tester.ensureSemantics();
     final factCompleter = Completer<CatFact>();
     final repository = _FakeBreedsRepository(factCompleter: factCompleter);
 
@@ -46,6 +153,7 @@ void main() {
     expect(find.text('Short'), findsOneWidget);
     expect(find.text('Ticked'), findsOneWidget);
     expect(find.text('Buscando un dato curioso…'), findsOneWidget);
+    expect(find.bySemanticsLabel('Buscando un dato curioso'), findsOneWidget);
     expect(repository.findCalls, 0);
 
     factCompleter.complete(
@@ -54,6 +162,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Los gatos duermen muchas horas.'), findsOneWidget);
+    semantics.dispose();
   });
 
   testWidgets('resolves a cold breed deep link through the repository', (

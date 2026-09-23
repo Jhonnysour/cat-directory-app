@@ -104,60 +104,67 @@ class _BreedHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colors.primaryContainer,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 34,
-            backgroundColor: colors.surface,
-            foregroundColor: colors.primary,
-            child: Text(
-              _monogram(breed.name),
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
+    return Semantics(
+      container: true,
+      header: true,
+      label: '${breed.name}, país ${breed.country}',
+      child: ExcludeSemantics(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
+            borderRadius: BorderRadius.circular(20),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  breed.name,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: colors.onPrimaryContainer,
-                    fontWeight: FontWeight.w700,
-                  ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 34,
+                backgroundColor: colors.surface,
+                foregroundColor: colors.primary,
+                child: Text(
+                  _monogram(breed.name),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 5),
-                Row(
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: 18,
-                      color: colors.onPrimaryContainer,
+                    Text(
+                      breed.name,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: colors.onPrimaryContainer,
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        breed.country,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 18,
                           color: colors.onPrimaryContainer,
                         ),
-                      ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            breed.country,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: colors.onPrimaryContainer),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -176,14 +183,21 @@ class _DetailLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 18),
-          Text('Buscando información de la raza…'),
-        ],
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: 'Buscando información de la raza',
+      child: ExcludeSemantics(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 18),
+              Text('Buscando información de la raza…'),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -203,20 +217,32 @@ class _BreedNotFoundView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.pets_outlined, size: 60, color: colors.primary),
-            const SizedBox(height: 18),
-            Text(
-              'Raza no encontrada',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'No encontramos “$name” en el directorio.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: colors.onSurfaceVariant),
+            Semantics(
+              container: true,
+              liveRegion: true,
+              label:
+                  'Raza no encontrada. No encontramos $name en el directorio.',
+              child: ExcludeSemantics(
+                child: Column(
+                  children: [
+                    Icon(Icons.pets_outlined, size: 60, color: colors.primary),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Raza no encontrada',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No encontramos “$name” en el directorio.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: colors.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 22),
             FilledButton.icon(

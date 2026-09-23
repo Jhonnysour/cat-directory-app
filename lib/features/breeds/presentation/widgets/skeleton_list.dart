@@ -29,35 +29,42 @@ class _SkeletonListState extends State<SkeletonList>
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Cargando razas',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: colors.onSurfaceVariant,
-          ),
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: 'Cargando directorio de razas',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Cargando razas',
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(color: colors.onSurfaceVariant),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) {
+                  final skeletonColor = Color.lerp(
+                    colors.surfaceContainerHighest,
+                    colors.surfaceContainerLow,
+                    _controller.value,
+                  )!;
+                  return ListView.separated(
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: 6,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (_, _) => _SkeletonTile(color: skeletonColor),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) {
-              final skeletonColor = Color.lerp(
-                colors.surfaceContainerHighest,
-                colors.surfaceContainerLow,
-                _controller.value,
-              )!;
-              return ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: 6,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (_, _) => _SkeletonTile(color: skeletonColor),
-              );
-            },
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -75,9 +82,7 @@ class _SkeletonTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Row(
         children: [
