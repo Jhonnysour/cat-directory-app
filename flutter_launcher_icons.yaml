@@ -1,0 +1,11 @@
+# Ícono de Cat-tionary. Regenerar con: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/branding/icon_full.png"
+  remove_alpha_ios: true
+  # Adaptativo (Android 8+): el foreground ya trae su margen dentro del círculo visible.
+  adaptive_icon_background: "#F6EDE3"
+  adaptive_icon_foreground: "assets/branding/icon_foreground.png"
+  adaptive_icon_foreground_inset: 0
+  min_sdk_android: 21

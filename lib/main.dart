@@ -85,7 +85,7 @@ class _MyAppState extends State<MyApp> {
     return ListenableBuilder(
       listenable: _themeController,
       builder: (context, child) => MaterialApp.router(
-        title: 'Directorio de razas',
+        title: 'Cat-tionary',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
