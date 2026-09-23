@@ -49,11 +49,23 @@ final class BreedsBloc extends Bloc<BreedsEvent, BreedsState> {
       }
     } on Failure catch (failure) {
       if (revision == _catalogRevision) {
-        _emitFailure(emit, failure);
+        _emitFailure(
+          emit,
+          failure,
+          source: state.hasData
+              ? BreedsFailureSource.revalidation
+              : BreedsFailureSource.initialLoad,
+        );
       }
     } on Object {
       if (revision == _catalogRevision) {
-        _emitFailure(emit, const Failure.unexpected());
+        _emitFailure(
+          emit,
+          const Failure.unexpected(),
+          source: state.hasData
+              ? BreedsFailureSource.revalidation
+              : BreedsFailureSource.initialLoad,
+        );
       }
     }
   }
@@ -95,11 +107,19 @@ final class BreedsBloc extends Bloc<BreedsEvent, BreedsState> {
       );
     } on Failure catch (failure) {
       if (revision == _catalogRevision) {
-        _emitFailure(emit, failure);
+        _emitFailure(
+          emit,
+          failure,
+          source: BreedsFailureSource.nextPage,
+        );
       }
     } on Object {
       if (revision == _catalogRevision) {
-        _emitFailure(emit, const Failure.unexpected());
+        _emitFailure(
+          emit,
+          const Failure.unexpected(),
+          source: BreedsFailureSource.nextPage,
+        );
       }
     }
   }
@@ -127,11 +147,19 @@ final class BreedsBloc extends Bloc<BreedsEvent, BreedsState> {
       emit(_replaceCatalog(page));
     } on Failure catch (failure) {
       if (revision == _catalogRevision) {
-        _emitFailure(emit, failure);
+        _emitFailure(
+          emit,
+          failure,
+          source: BreedsFailureSource.refresh,
+        );
       }
     } on Object {
       if (revision == _catalogRevision) {
-        _emitFailure(emit, const Failure.unexpected());
+        _emitFailure(
+          emit,
+          const Failure.unexpected(),
+          source: BreedsFailureSource.refresh,
+        );
       }
     }
   }
@@ -155,7 +183,11 @@ final class BreedsBloc extends Bloc<BreedsEvent, BreedsState> {
     );
   }
 
-  void _emitFailure(Emitter<BreedsState> emit, Failure failure) {
+  void _emitFailure(
+    Emitter<BreedsState> emit,
+    Failure failure, {
+    required BreedsFailureSource source,
+  }) {
     emit(
       state.copyWith(
         status: state.hasData ? BreedsStatus.success : BreedsStatus.failure,
@@ -163,6 +195,7 @@ final class BreedsBloc extends Bloc<BreedsEvent, BreedsState> {
         isRefreshing: false,
         isRevalidating: false,
         failure: failure,
+        failureSource: source,
       ),
     );
   }

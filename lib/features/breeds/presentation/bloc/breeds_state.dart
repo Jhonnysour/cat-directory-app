@@ -2,6 +2,8 @@ part of 'breeds_bloc.dart';
 
 enum BreedsStatus { initial, loading, success, failure }
 
+enum BreedsFailureSource { initialLoad, nextPage, refresh, revalidation }
+
 final class BreedsState {
   BreedsState({
     this.status = BreedsStatus.initial,
@@ -15,6 +17,7 @@ final class BreedsState {
     this.isFromCache = false,
     this.isStale = false,
     this.failure,
+    this.failureSource,
   }) : breeds = List<Breed>.unmodifiable(breeds);
 
   factory BreedsState.initial() => BreedsState();
@@ -30,6 +33,7 @@ final class BreedsState {
   final bool isFromCache;
   final bool isStale;
   final Failure? failure;
+  final BreedsFailureSource? failureSource;
 
   bool get hasData => breeds.isNotEmpty;
 
@@ -59,6 +63,7 @@ final class BreedsState {
     bool? isFromCache,
     bool? isStale,
     Failure? failure,
+    BreedsFailureSource? failureSource,
     bool clearFailure = false,
   }) {
     return BreedsState(
@@ -73,6 +78,9 @@ final class BreedsState {
       isFromCache: isFromCache ?? this.isFromCache,
       isStale: isStale ?? this.isStale,
       failure: clearFailure ? null : failure ?? this.failure,
+      failureSource: clearFailure
+          ? null
+          : failureSource ?? this.failureSource,
     );
   }
 }
